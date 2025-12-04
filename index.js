@@ -214,7 +214,7 @@ app.post('/tts', async (req, res) => {
       type: 'audio/mpeg',
       size
     });
-  } } catch (err) {
+  } catch (err) {
   const status = err?.response?.status;
   const headers = err?.response?.headers;
   let body = err?.response?.data;
@@ -268,4 +268,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
