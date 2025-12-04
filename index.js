@@ -4,17 +4,29 @@ const axios = require('axios');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const FormData = require('form-data');
 
+// ----------------------------------------------------
+// APP
+// ----------------------------------------------------
 const app = express();
 app.use(express.json());
 
-// ----------------- CONFIGURAÇÕES -----------------
+// ----------------------------------------------------
+// CONFIGURAÇÕES DE AMBIENTE
+// ----------------------------------------------------
 
-// ElevenLabs (TTS)
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID; // voz PT-BR
-
-// OpenAI (Whisper + ajuste de texto)
+// OpenAI (ajuste de texto + TTS + Whisper)
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+// Modelo para formatar texto (chat)
+const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
+
+// Modelo de TTS (texto -> fala)
+// Exemplos suportados: gpt-4o-mini-tts, tts-1, tts-1-hd
+const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
+
+// Voz do TTS
+// Exemplos: alloy, echo, fable, onyx, nova, shimmer (depende do modelo/deployment)
+const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'alloy';
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -33,7 +45,9 @@ const r2Client = new S3Client({
   }
 });
 
-// ----------------- AJUSTE DE TEXTO PARA FALA -----------------
+// ----------------------------------------------------
+// AJUSTE DE TEXTO PARA FALA (CHAT OPENAI)
+// ----------------------------------------------------
 
 async function ajustarTextoParaFala(textoOriginal) {
   if (!OPENAI_API_KEY) {
@@ -60,7 +74,7 @@ Texto:
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o-mini', // pode trocar por outro modelo se quiser
+        model: OPENAI_TEXT_MODEL,
         messages: [
           {
             role: 'system',
@@ -89,37 +103,65 @@ Texto:
   }
 }
 
-// ----------------- TTS (texto -> áudio) -----------------
+// ----------------------------------------------------
+// TTS OPENAI (texto -> áudio MP3)
+// ----------------------------------------------------
 
-async function gerarAudioElevenLabs(texto) {
-  if (!ELEVENLABS_API_KEY || !ELEVENLABS_VOICE_ID) {
-    throw new Error('Config ElevenLabs faltando (API KEY ou VOICE_ID)');
+async function gerarAudioOpenAI(texto) {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY não configurada');
   }
 
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
-
-  const response = await axios.post(
-    url,
-    {
-      text: texto,
-      model_id: 'eleven_multilingual_v2', // suporta bem PT-BR
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.8
-      }
-    },
-    {
-      headers: {
-        'xi-api-key': ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg'
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/audio/speech',
+      {
+        model: OPENAI_TTS_MODEL,
+        voice: OPENAI_TTS_VOICE,
+        input: texto,
+        format: 'mp3'
       },
-      responseType: 'arraybuffer'
-    }
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'arraybuffer'
+      }
+    );
 
-  return Buffer.from(response.data);
+    return Buffer.from(response.data);
+  } catch (err) {
+    // Log detalhado para entender erros da OpenAI
+    const status = err?.response?.status;
+    let body = err?.response?.data;
+
+    console.error('Erro na chamada TTS da OpenAI. Status:', status);
+
+    if (body) {
+      if (Buffer.isBuffer(body)) {
+        const text = body.toString('utf8');
+        console.error('Corpo de erro (texto):', text);
+        try {
+          const json = JSON.parse(text);
+          console.error('Erro JSON parseado:', json);
+        } catch (e) {
+          // Ignora erro de parse
+        }
+      } else {
+        console.error('Corpo de erro:', body);
+      }
+    } else {
+      console.error('Erro TTS sem body:', err.message || err);
+    }
+
+    throw new Error('Falha ao chamar TTS da OpenAI');
+  }
 }
+
+// ----------------------------------------------------
+// SALVAR ÁUDIO NO CLOUDFLARE R2
+// ----------------------------------------------------
 
 async function salvarNoR2(buffer, userId = 'anonimo') {
   if (!R2_BUCKET || !R2_PUBLIC_BASE_URL) {
@@ -131,7 +173,7 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
 
-  const safeUserId = String(userId).replace(/[^a-zA-Z0-9_\-@.]/g, '_');
+  const safeUserId = String(userId).replace(/[^a-zA-Z0-9_\\-@.]/g, '_');
   const key = `audios/${yyyy}/${mm}/${dd}/${safeUserId}_${now.getTime()}.mp3`;
 
   const putCommand = new PutObjectCommand({
@@ -151,7 +193,9 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
   };
 }
 
-// ----------------- STT (áudio -> texto) -----------------
+// ----------------------------------------------------
+// STT (áudio -> texto) COM WHISPER (OPENAI)
+// ----------------------------------------------------
 
 async function transcreverAudioWhisperFromUrl(audioUrl) {
   if (!OPENAI_API_KEY) {
@@ -168,7 +212,7 @@ async function transcreverAudioWhisperFromUrl(audioUrl) {
   // 2) Envia para Whisper
   const formData = new FormData();
   formData.append('file', audioBuffer, 'audio.ogg'); // nome genérico
-  formData.append('model', 'whisper-1');
+  formData.append('model', 'whisper-1'); // ou outro modelo de transcrição suportado
   formData.append('language', 'pt'); // força português
 
   const response = await axios.post(
@@ -185,7 +229,9 @@ async function transcreverAudioWhisperFromUrl(audioUrl) {
   return response.data.text;
 }
 
-// ----------------- ENDPOINTS -----------------
+// ----------------------------------------------------
+// ENDPOINTS
+// ----------------------------------------------------
 
 // POST /tts  -> texto -> áudio (URL no R2)
 app.post('/tts', async (req, res) => {
@@ -202,8 +248,8 @@ app.post('/tts', async (req, res) => {
     console.log('Texto original:', texto);
     console.log('Texto ajustado:', textoAjustado);
 
-    // 2) Gera o áudio com ElevenLabs usando o texto ajustado
-    const audioBuffer = await gerarAudioElevenLabs(textoAjustado);
+    // 2) Gera o áudio com OpenAI TTS usando o texto ajustado
+    const audioBuffer = await gerarAudioOpenAI(textoAjustado);
 
     // 3) Salva o áudio no Cloudflare R2
     const { uri, size } = await salvarNoR2(audioBuffer, userId);
@@ -215,33 +261,33 @@ app.post('/tts', async (req, res) => {
       size
     });
   } catch (err) {
-  const status = err?.response?.status;
-  const headers = err?.response?.headers;
-  let body = err?.response?.data;
+    const status = err?.response?.status;
+    let errorMessage = 'Erro ao gerar ou salvar áudio';
 
-  // Se for Buffer (caso típico por causa do responseType: 'arraybuffer')
-  if (body && Buffer.isBuffer(body)) {
-    try {
-      const text = body.toString('utf8');
-      console.error('Erro no /tts STATUS:', status);
-      console.error('Headers:', headers);
-      console.error('Body:', text);
+    // Se for erro vindo da OpenAI com JSON
+    if (err?.response?.data) {
+      const data = err.response.data;
 
-      try {
-        const json = JSON.parse(text);
-        console.error('JSON parsed:', json);
-      } catch (e) {
-        // não era JSON, então ignora
+      if (Buffer.isBuffer(data)) {
+        const text = data.toString('utf8');
+        try {
+          const json = JSON.parse(text);
+          if (json?.error?.message) {
+            errorMessage = `OpenAI TTS: ${json.error.message}`;
+          }
+        } catch (e) {
+          // Ignora parse
+        }
+      } else if (typeof data === 'object' && data?.error?.message) {
+        errorMessage = `OpenAI TTS: ${data.error.message}`;
       }
-    } catch (e) {
-      console.error('Erro convertendo Buffer pra string:', e);
+    } else if (err.message) {
+      errorMessage = err.message;
     }
-  } else {
-    console.error('Erro no /tts:', err?.response?.data || err.message || err);
-  }
 
-  return res.status(500).json({ error: 'Erro ao gerar ou salvar áudio' });
-}
+    console.error('Erro no /tts:', err?.response?.data || err.message || err);
+    return res.status(status || 500).json({ error: errorMessage });
+  }
 });
 
 // POST /stt  -> áudio (URL) -> texto
@@ -262,11 +308,11 @@ app.post('/stt', async (req, res) => {
   }
 });
 
-// ----------------- INÍCIO DO SERVIDOR -----------------
+// ----------------------------------------------------
+// INÍCIO DO SERVIDOR
+// ----------------------------------------------------
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
-
-
