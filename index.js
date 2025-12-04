@@ -214,10 +214,34 @@ app.post('/tts', async (req, res) => {
       type: 'audio/mpeg',
       size
     });
-  } catch (err) {
+  } } catch (err) {
+  const status = err?.response?.status;
+  const headers = err?.response?.headers;
+  let body = err?.response?.data;
+
+  // Se for Buffer (caso típico por causa do responseType: 'arraybuffer')
+  if (body && Buffer.isBuffer(body)) {
+    try {
+      const text = body.toString('utf8');
+      console.error('Erro no /tts STATUS:', status);
+      console.error('Headers:', headers);
+      console.error('Body:', text);
+
+      try {
+        const json = JSON.parse(text);
+        console.error('JSON parsed:', json);
+      } catch (e) {
+        // não era JSON, então ignora
+      }
+    } catch (e) {
+      console.error('Erro convertendo Buffer pra string:', e);
+    }
+  } else {
     console.error('Erro no /tts:', err?.response?.data || err.message || err);
-    return res.status(500).json({ error: 'Erro ao gerar ou salvar áudio' });
   }
+
+  return res.status(500).json({ error: 'Erro ao gerar ou salvar áudio' });
+}
 });
 
 // POST /stt  -> áudio (URL) -> texto
@@ -244,3 +268,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
