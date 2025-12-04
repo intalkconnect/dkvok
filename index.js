@@ -174,7 +174,6 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
   const dd = String(now.getDate()).padStart(2, '0');
 
   const safeUserId = String(userId).replace(/[^a-zA-Z0-9_.@-]/g, '_');
-
   const key = `audios/${yyyy}/${mm}/${dd}/${safeUserId}_${now.getTime()}.mp3`;
 
   const putCommand = new PutObjectCommand({
@@ -183,6 +182,17 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
     Body: buffer,
     ContentType: 'audio/mpeg'
   });
+
+  await r2Client.send(putCommand);
+
+  const publicUrl = `${R2_PUBLIC_BASE_URL}/${key}`;
+
+  return {
+    uri: publicUrl,
+    size: buffer.length
+  };
+}
+
 
   await r2Client.send(putCommand);
 
@@ -317,4 +327,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
