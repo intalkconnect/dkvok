@@ -56,18 +56,22 @@ async function ajustarTextoParaFala(textoOriginal) {
   }
 
   try {
-const prompt = `
-Você é um assistente que ajusta textos para serem lidos em voz alta em português do Brasil.
+    const prompt = `
+Você é um assistente de escrita em **português brasileiro (pt-BR)**.
 
 Objetivo:
-Deixar o texto natural e em um ritmo um pouco mais lento e claro, como um narrador didático.
+Reescrever o texto para ser lido em voz alta por uma voz de IA, usando exclusivamente português do Brasil.
 
-Tarefas:
+Regras importantes:
+- Sempre use vocabulário, ortografia e expressões do português do Brasil (pt-BR), NUNCA do português de Portugal.
+- Exemplos:
+  - Use "trem", não "comboio".
+  - Use "ônibus", não "autocarro".
+  - Use "caminhão", não "camioneta".
+  - Use "você/vocês" como forma neutra, evite "tu/vós" a não ser que já esteja no texto original.
 - Corrija pontuação (.,?!).
 - Separe frases muito longas em períodos menores.
-- Use vírgulas e pontos finais para criar pausas naturais.
-- Insira quebras de linha entre parágrafos quando houver mudança de assunto.
-- Evite frases muito coladas umas nas outras.
+- Use vírgulas, pontos finais e quebras de linha para criar pausas naturais na fala.
 - Mantenha o sentido original e o tom da mensagem.
 - Não acrescente informações novas.
 - Não mude de pessoa (eu / você / nós).
@@ -77,7 +81,6 @@ Texto:
 """${textoOriginal}"""
 `;
 
-
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
@@ -85,14 +88,14 @@ Texto:
         messages: [
           {
             role: 'system',
-            content: 'Você formata texto em PT-BR para ser lido em voz alta por uma voz de IA.'
+            content: 'Você é um assistente de escrita que SEMPRE responde em português brasileiro (pt-BR), com vocabulário do Brasil.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.7
+        temperature: 0.3
       },
       {
         headers: {
@@ -109,6 +112,7 @@ Texto:
     return textoOriginal;
   }
 }
+
 
 // ----------------------------------------------------
 // TTS OPENAI (texto -> áudio MP3)
@@ -324,6 +328,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
 
