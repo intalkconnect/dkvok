@@ -21,7 +21,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
 
 // Modelo de TTS (texto -> fala)
-// Exemplos suportados: gpt-4o-mini-tts, tts-1, tts-1-hd
+// Exemplos suportados: tts-1, tts-1-hd, gpt-4o-mini-tts (depende do que sua conta permite)
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
 
 // Voz do TTS
@@ -130,6 +130,7 @@ async function gerarAudioOpenAI(texto) {
       }
     );
 
+    // Resposta vem como binário do áudio
     return Buffer.from(response.data);
   } catch (err) {
     // Log detalhado para entender erros da OpenAI
@@ -163,10 +164,6 @@ async function gerarAudioOpenAI(texto) {
 // SALVAR ÁUDIO NO CLOUDFLARE R2
 // ----------------------------------------------------
 
-// ----------------------------------------------------
-// SALVAR ÁUDIO NO CLOUDFLARE R2
-// ----------------------------------------------------
-
 async function salvarNoR2(buffer, userId = 'anonimo') {
   if (!R2_BUCKET || !R2_PUBLIC_BASE_URL) {
     throw new Error('Config R2 faltando (R2_BUCKET ou R2_PUBLIC_BASE_URL)');
@@ -186,18 +183,6 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
     Body: buffer,
     ContentType: 'audio/mpeg'
   });
-
-  await r2Client.send(putCommand);
-
-  const publicUrl = `${R2_PUBLIC_BASE_URL}/${key}`;
-
-  return {
-    uri: publicUrl,
-    size: buffer.length
-  };
-}
-
-
 
   await r2Client.send(putCommand);
 
@@ -332,6 +317,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
-
-
-
