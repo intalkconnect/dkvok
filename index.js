@@ -163,6 +163,10 @@ async function gerarAudioOpenAI(texto) {
 // SALVAR ÁUDIO NO CLOUDFLARE R2
 // ----------------------------------------------------
 
+// ----------------------------------------------------
+// SALVAR ÁUDIO NO CLOUDFLARE R2
+// ----------------------------------------------------
+
 async function salvarNoR2(buffer, userId = 'anonimo') {
   if (!R2_BUCKET || !R2_PUBLIC_BASE_URL) {
     throw new Error('Config R2 faltando (R2_BUCKET ou R2_PUBLIC_BASE_URL)');
@@ -192,6 +196,7 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
     size: buffer.length
   };
 }
+
 
 
   await r2Client.send(putCommand);
@@ -327,5 +332,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
