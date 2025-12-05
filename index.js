@@ -92,7 +92,7 @@ Texto:
             content: prompt
           }
         ],
-        temperature: 0.3
+        temperature: 0.7
       },
       {
         headers: {
@@ -324,4 +324,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
