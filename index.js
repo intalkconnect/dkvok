@@ -60,14 +60,14 @@ const prompt = `
 Você é um assistente que ajusta textos para serem lidos em voz alta em português do Brasil.
 
 Objetivo:
-Deixar o texto natural para ser narrado por uma voz de IA.
+Deixar o texto natural e em um ritmo um pouco mais lento e claro, como um narrador didático.
 
 Tarefas:
 - Corrija pontuação (.,?!).
 - Separe frases muito longas em períodos menores.
 - Use vírgulas e pontos finais para criar pausas naturais.
-- Use quebras de linha entre parágrafos quando houver mudança de assunto.
-- Use reticências apenas quando fizer sentido criar uma pausa dramática.
+- Insira quebras de linha entre parágrafos quando houver mudança de assunto.
+- Evite frases muito coladas umas nas outras.
 - Mantenha o sentido original e o tom da mensagem.
 - Não acrescente informações novas.
 - Não mude de pessoa (eu / você / nós).
@@ -324,5 +324,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
