@@ -56,20 +56,27 @@ async function ajustarTextoParaFala(textoOriginal) {
   }
 
   try {
-    const prompt = `
+const prompt = `
 Você é um assistente que ajusta textos para serem lidos em voz alta em português do Brasil.
+
+Objetivo:
+Deixar o texto natural para ser narrado por uma voz de IA.
 
 Tarefas:
 - Corrija pontuação (.,?!).
-- Separe frases muito longas.
-- Mantenha o sentido original.
+- Separe frases muito longas em períodos menores.
+- Use vírgulas e pontos finais para criar pausas naturais.
+- Use quebras de linha entre parágrafos quando houver mudança de assunto.
+- Use reticências apenas quando fizer sentido criar uma pausa dramática.
+- Mantenha o sentido original e o tom da mensagem.
 - Não acrescente informações novas.
 - Não mude de pessoa (eu / você / nós).
-- Não coloque aspas, tags ou comentários, retorne APENAS o texto final.
+- Não use aspas, tags, marcações, SSML ou comentários. Retorne APENAS o texto final pronto para ser lido em voz alta.
 
 Texto:
 """${textoOriginal}"""
 `;
+
 
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -317,3 +324,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
