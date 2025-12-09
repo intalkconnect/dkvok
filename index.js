@@ -141,7 +141,7 @@ async function gerarAudioOpenAI(texto) {
         model: OPENAI_TTS_MODEL,
         voice: OPENAI_TTS_VOICE,
         input: texto,
-        format: 'mp3'
+        format: 'opus'
       },
       {
         headers: {
@@ -339,6 +339,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
 
