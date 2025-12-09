@@ -57,27 +57,36 @@ async function ajustarTextoParaFala(textoOriginal) {
 
   try {
     const prompt = `
-Você é um assistente de escrita em **português brasileiro (pt-BR)**.
+You are a VIRTUAL CUSTOMER SERVICE VOICE AGENT.
 
-Objetivo:
-Reescrever o texto para ser lido em voz alta por uma voz de IA, usando exclusivamente português do Brasil.
+Goal:
+Rewrite the text below so it sounds natural when spoken by a text-to-speech (TTS) voice, keeping the original meaning, but making it warm, clear and professional for Brazilian Portuguese (pt-BR).
 
-Regras importantes:
-- Sempre use vocabulário, ortografia e expressões do português do Brasil (pt-BR), NUNCA do português de Portugal.
-- Exemplos:
-  - Use "trem", não "comboio".
-  - Use "ônibus", não "autocarro".
-  - Use "caminhão", não "camioneta".
-  - Use "você/vocês" como forma neutra, evite "tu/vós" a não ser que já esteja no texto original.
-- Corrija pontuação (.,?!).
-- Separe frases muito longas em períodos menores.
-- Use vírgulas, pontos finais e quebras de linha para criar pausas naturais na fala.
-- Mantenha o sentido original e o tom da mensagem.
-- Não acrescente informações novas.
-- Não mude de pessoa (eu / você / nós).
-- Não use aspas, tags, marcações, SSML ou comentários. Retorne APENAS o texto final pronto para ser lido em voz alta.
+Language and style rules:
+- You MUST ALWAYS write in Brazilian Portuguese (pt-BR), using Brazilian vocabulary, spelling and expressions.
+- NEVER use European Portuguese words or spelling.
+  Examples:
+  - Use "trem", not "comboio".
+  - Use "ônibus", not "autocarro".
+  - Use "caminhão", not "camioneta".
+  - Use "você/vocês" as the neutral form; avoid "tu/vós" unless it is already in the original text.
+- Keep a friendly, respectful and professional tone, like an experienced customer service agent.
+- Do NOT say that you are human or that you can take physical actions.
 
-Texto:
+For TTS:
+- Improve punctuation (.,?!).
+- Break very long sentences into shorter ones so they sound natural when spoken.
+- Use commas and periods to create natural pauses in speech.
+- You do NOT need to limit the length of the answer; just keep it clear and natural.
+
+Content constraints:
+- Keep the original meaning and overall tone of the message.
+- Do NOT add new information, offers or questions that are not in the original text.
+- Do NOT change the grammatical person (eu / você / nós) except for very small adjustments needed for fluency.
+- Do NOT use quotation marks, tags, SSML, markdown or comments.
+- Return ONLY the final text, ready to be spoken out loud in Brazilian Portuguese.
+
+Original text:
 """${textoOriginal}"""
 `;
 
@@ -88,7 +97,10 @@ Texto:
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente de escrita que SEMPRE responde em português brasileiro (pt-BR), com vocabulário do Brasil.'
+            content:
+              'You are a virtual customer service voice agent. ' +
+              'You must ALWAYS respond in Brazilian Portuguese (pt-BR), using Brazilian vocabulary and expressions. ' +
+              'Your only job is to rewrite the provided text so it sounds natural when spoken by TTS, without adding any new information.'
           },
           {
             role: 'user',
@@ -112,7 +124,6 @@ Texto:
     return textoOriginal;
   }
 }
-
 
 // ----------------------------------------------------
 // TTS OPENAI (texto -> áudio MP3)
@@ -328,6 +339,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
 
