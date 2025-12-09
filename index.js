@@ -155,9 +155,9 @@ async function gerarAudioElevenLabs(texto) {
         model_id: ELEVENLABS_MODEL_ID,
         // Configuração voltada para voz de atendimento: estável, profissional, pouco dramática
 "voice_settings": {
-      "stability": 0.35,
-      "similarity_boost": 0.8,
-      "style": 0.3,
+      "stability": 0.3,
+      "similarity_boost": 0.9,
+      "style": 0.1,
       "use_speaker_boost": true
     }
       },
