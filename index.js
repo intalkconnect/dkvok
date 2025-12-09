@@ -154,12 +154,12 @@ async function gerarAudioElevenLabs(texto) {
         text: texto,
         model_id: ELEVENLABS_MODEL_ID,
         // Configuração voltada para voz de atendimento: estável, profissional, pouco dramática
-        voice_settings: {
-          stability: 0.9,
-          similarity_boost: 0.9,
-          style: 0.0,
-          use_speaker_boost: true
-        }
+"voice_settings": {
+      "stability": 0.35,
+      "similarity_boost": 0.8,
+      "style": 0.3,
+      "use_speaker_boost": true
+    }
       },
       {
         headers: {
@@ -169,7 +169,7 @@ async function gerarAudioElevenLabs(texto) {
         },
         // output_format e optimize_streaming_latency via query params
         params: {
-          output_format: 'mp3_22050_32',
+          "output_format": "mp3_44100_128",
           optimize_streaming_latency: 0
         },
         responseType: 'arraybuffer',
