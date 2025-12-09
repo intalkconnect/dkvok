@@ -150,31 +150,37 @@ async function gerarAudioElevenLabs(texto) {
   try {
     const response = await axios.post(
       url,
-      {
-        text: texto,
-        model_id: ELEVENLABS_MODEL_ID,
-        // Configuração voltada para voz de atendimento: estável, profissional, pouco dramática
-"voice_settings": {
-      "stability": 0.3,
-      "similarity_boost": 0.9,
-      "style": 0.1,
-      "use_speaker_boost": true
-    }
-      },
-      {
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
-          Accept: 'audio/mpeg'
-        },
-        // output_format e optimize_streaming_latency via query params
-        params: {
-          "output_format": "mp3_44100_128",
-          optimize_streaming_latency: 0
-        },
-        responseType: 'arraybuffer',
-        timeout: 30000 // 30s para evitar travar indefinidamente
-      }
+      const response = await axios.post(
+  `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+  {
+    text: texto,
+    model_id: ELEVENLABS_MODEL_ID,       // ex: "eleven_multilingual_v2"
+    language_code: 'pt-BR',
+    // Deixa a voz mais estável, natural e um pouco mais calma
+    voice_settings: {
+      stability: 0.7,            // ↑ mais estabilidade, menos variação estranha
+      similarity_boost: 0.9,     // mantém bem o timbre da Roberta
+      style: 0.3,                // leve variação de expressividade
+      speed: 0.95,               // um pouco mais devagar, mais natural em atendimento
+      use_speaker_boost: true    // deixa a voz mais clara em celular
+    },
+    apply_text_normalization: 'auto',
+    apply_language_text_normalization: true
+  },
+  {
+    headers: {
+      'xi-api-key': ELEVENLABS_API_KEY,
+      'Content-Type': 'application/json',
+      Accept: 'audio/mpeg'
+    },
+    // formato focado em qualidade, sem otimização agressiva de latência
+    params: {
+      output_format: 'mp3_44100_128',
+      optimize_streaming_latency: 0
+    },
+    responseType: 'arraybuffer',
+    timeout: 30000 // 30s
+  }
     );
 
     return Buffer.from(response.data);
