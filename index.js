@@ -197,7 +197,7 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
   const dd = String(now.getDate()).padStart(2, '0');
 
   const safeUserId = String(userId).replace(/[^a-zA-Z0-9_.@-]/g, '_');
-  const key = `audios/${yyyy}/${mm}/${dd}/${safeUserId}_${now.getTime()}.mp3`;
+  const key = `audios/${yyyy}/${mm}/${dd}/${safeUserId}_${now.getTime()}.ogg`;
 
   const putCommand = new PutObjectCommand({
     Bucket: R2_BUCKET,
@@ -339,6 +339,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
 
