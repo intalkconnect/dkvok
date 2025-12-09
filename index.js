@@ -203,7 +203,7 @@ async function salvarNoR2(buffer, userId = 'anonimo') {
     Bucket: R2_BUCKET,
     Key: key,
     Body: buffer,
-    ContentType: 'audio/mpeg'
+    ContentType: 'audio/ogg'
   });
 
   await r2Client.send(putCommand);
@@ -339,6 +339,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz rodando na porta ${PORT}`);
 });
+
 
 
 
