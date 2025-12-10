@@ -15,22 +15,22 @@ app.use(express.json());
 // ----------------------------------------------------
 
 // OpenAI (ajuste de texto + Whisper)
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY ;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Modelo para formatar texto (chat)
 const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
 
-// ElevenLabs TTS
-// ⚠️ Não use default com chave real em produção, sempre via variável de ambiente
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "c9bd234946e0599d1e08f62d589581dcb2e1c75bc5eeb058452bb975aa540820";
-const ELEVENLABS_VOICE_ID =
-  process.env.ELEVENLABS_VOICE_ID_ROBERTA ||
-  process.env.ELEVENLABS_VOICE_ID ||
-  'RGymW84CSmfVugnA5tvA'; // coloque aqui o voice_id da Roberta se quiser fixar
+// (Mantido caso você queira fallback em TTS, mas não é usado diretamente agora)
+const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
+const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'alloy';
 
-// Modelo estável que suporta pt-BR pela própria voz (detecção automática)
+// ElevenLabs TTS
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || 'c9bd234946e0599d1e08f62d589581dcb2e1c75bc5eeb058452bb975aa540820';
+const ELEVENLABS_VOICE_ID =
+  process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
+// Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
-  process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
+  process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // melhor para estabilidade e velocidade
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -79,20 +79,21 @@ REGRAS DE LINGUAGEM E ESTILO:
 
 PARA HUMANIZAÇÃO DA FALA:
 - Adicione pausas naturais usando vírgulas e pontos estrategicamente.
-- Quebre frases muito longas em sentenças menores e mais respiráveis (máximo 15–20 palavras por frase).
-- Use palavras de transição naturais quando apropriado (então, bem, olha, veja, etc.)
-- Evite palavras muito longas ou complexas – prefira sinônimos mais simples.
-- Mantenha ritmo constante.
+- Quebre frases muito longas em sentenças menores e mais respiráveis (máximo 15-20 palavras por frase).
+- Use palavras de transição naturais quando apropriado (então, bem, veja, olha, etc.)
+- Evite palavras muito longas ou complexas - prefira sinônimos mais simples e curtos.
+- Mantenha ritmo constante - evite acelerar ou desacelerar no meio das frases.
 - Adicione vírgulas antes de palavras que naturalmente causam pausa (mas, porém, pois, quando, etc.)
-- NÃO use reticências (...).
+- NÃO use reticências (...) - elas podem causar instabilidade na voz.
+- Evite linguagem muito formal ou robótica - escreva como uma pessoa falaria naturalmente.
 
 PONTUAÇÃO PARA TTS:
-- Use vírgulas para pausas curtas naturais.
+- Use vírgulas para criar pausas curtas e naturais na fala.
 - Use pontos para separar ideias e criar respirações.
-- Evite reticências (...).
+- Evite reticências (...) - podem causar tremulação na voz.
 - Coloque vírgula após palavras introdutórias (Bem, Então, Olha, Veja, etc.)
-- Use ? e ! com naturalidade, sem exageros.
-- Termine TODAS as frases com pontuação.
+- Use pontos de interrogação e exclamação com naturalidade, mas sem exageros.
+- Coloque ponto final em TODAS as frases - nunca deixe frases sem pontuação final.
 
 RESTRIÇÕES DE CONTEÚDO:
 - Mantenha o significado e tom geral original da mensagem.
@@ -154,7 +155,7 @@ async function gerarAudioElevenLabs(texto) {
 
   if (!ELEVENLABS_VOICE_ID || ELEVENLABS_VOICE_ID === 'roberta') {
     console.warn(
-      'ATENÇÃO: ELEVENLABS_VOICE_ID_ROBERTA não configurada ou genérica. ' +
+      'ATENÇÃO: ELEVENLABS_VOICE_ID_ROBERTA não configurada. ' +
         'Configure o voice_id real da Roberta no .env para maior estabilidade.'
     );
   }
@@ -166,15 +167,19 @@ async function gerarAudioElevenLabs(texto) {
       url,
       {
         text: texto,
-        model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 (detecção automática de idioma pela voz)
-        // Aqui NÃO usamos language_code / apply_* porque não são suportados por esse modelo
+        model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
+        language_code: 'pt-BR',
         voice_settings: {
-          stability: 0.65,        // reduz tremulação
-          similarity_boost: 0.8,  // clareza sem ficar metalizada demais
-          style: 0.25,            // pouca variação dramática
-          speed: 1.0,             // ritmo natural
-          use_speaker_boost: true // mais clareza em celular
-        }
+          stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
+          similarity_boost: 0.8,       // Balanceado para clareza sem metalização
+          style: 0.25,                 // Reduzido para menos variação no final das palavras
+          speed: 1.0,                  // Velocidade natural/normal
+          use_speaker_boost: true      // Mantém para clareza e consistência
+        },
+        // Configurações adicionais para melhor qualidade
+        pronunciation_dictionary_locators: [],
+        apply_text_normalization: 'auto',
+        apply_language_text_normalization: true
       },
       {
         headers: {
@@ -183,11 +188,11 @@ async function gerarAudioElevenLabs(texto) {
           Accept: 'audio/mpeg'
         },
         params: {
-          output_format: 'mp3_44100_192', // MP3 44.1kHz / 192kbps (qualidade alta)
-          optimize_streaming_latency: 0   // melhor qualidade ao invés de latência
+          output_format: 'mp3_44100_192',    // Aumentado para 192kbps (melhor qualidade)
+          optimize_streaming_latency: 0      // Sem otimização de latência = melhor qualidade
         },
         responseType: 'arraybuffer',
-        timeout: 45000 // 45s
+        timeout: 45000 // 45s (aumentado por conta da melhor qualidade)
       }
     );
 
@@ -216,6 +221,63 @@ async function gerarAudioElevenLabs(texto) {
     }
 
     throw new Error('Falha ao chamar TTS da ElevenLabs');
+  }
+}
+
+
+// ----------------------------------------------------
+// (OPCIONAL) TTS OPENAI COMO FALLBACK
+// ----------------------------------------------------
+
+async function gerarAudioOpenAI(texto) {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY não configurada');
+  }
+
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/audio/speech',
+      {
+        model: OPENAI_TTS_MODEL,
+        voice: OPENAI_TTS_VOICE,
+        input: texto,
+        speed: 1.0, // velocidade natural
+        format: 'opus'
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'arraybuffer'
+      }
+    );
+
+    return Buffer.from(response.data);
+  } catch (err) {
+    const status = err?.response?.status;
+    let body = err?.response?.data;
+
+    console.error('Erro na chamada TTS da OpenAI (fallback). Status:', status);
+
+    if (body) {
+      if (Buffer.isBuffer(body)) {
+        const text = body.toString('utf8');
+        console.error('Corpo de erro (texto):', text);
+        try {
+          const json = JSON.parse(text);
+          console.error('Erro JSON parseado:', json);
+        } catch (e) {
+          // Ignora erro de parse
+        }
+      } else {
+        console.error('Corpo de erro:', body);
+      }
+    } else {
+      console.error('Erro TTS OpenAI sem body:', err.message || err);
+    }
+
+    throw new Error('Falha ao chamar TTS da OpenAI (fallback)');
   }
 }
 
@@ -313,18 +375,32 @@ app.post('/tts', async (req, res) => {
 
     // 2) Adiciona pausa suave no início para evitar início abrupto
     const textoComPausa = `. ${textoAjustado}`;
+    
     console.log('Texto com pausa inicial:', textoComPausa);
+    
+    // 3) Gera o áudio com ElevenLabs (voz Roberta humanizada)
+    let audioBuffer;
+    try {
+      audioBuffer = await gerarAudioElevenLabs(textoComPausa);
+    } catch (errEleven) {
+      console.error('Falha ElevenLabs TTS:', errEleven?.message || errEleven);
 
-    // 3) Gera o áudio com ElevenLabs (voz Roberta humanizada, pt-BR)
-    const audioBuffer = await gerarAudioElevenLabs(textoComPausa);
+      // Fallback opcional para OpenAI se configurado
+      if (OPENAI_API_KEY) {
+        console.warn('Tentando fallback TTS com OpenAI...');
+        audioBuffer = await gerarAudioOpenAI(textoAjustado);
+      } else {
+        throw errEleven;
+      }
+    }
 
-    // 4) Salva o áudio no Cloudflare R2 como MP3
+    // 3) Salva o áudio no Cloudflare R2 como MP3
     const { uri, size } = await salvarNoR2(audioBuffer, userId, {
       extension: 'mp3',
       contentType: 'audio/mpeg'
     });
 
-    // 5) Retorna para o chamador (ex.: Blip)
+    // 4) Retorna para o chamador (ex.: Blip)
     return res.json({
       uri,
       type: 'audio/mpeg',
@@ -335,6 +411,7 @@ app.post('/tts', async (req, res) => {
     const status = err?.response?.status;
     let errorMessage = 'Erro ao gerar ou salvar áudio';
 
+    // Se for erro vindo da ElevenLabs/OpenAI com JSON
     if (err?.response?.data) {
       const data = err.response.data;
 
@@ -385,9 +462,9 @@ app.post('/stt', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz humanizada rodando na porta ${PORT}`);
-  console.log('Configurações otimizadas para reduzir tremulação / metalização:');
+  console.log('Configurações otimizadas para reduzir tremulação:');
   console.log('- Modelo ElevenLabs:', ELEVENLABS_MODEL_ID);
   console.log('- Stability: 0.65 (equilibrado)');
   console.log('- Style: 0.25 (controlado)');
-  console.log('- Qualidade: MP3 44.1kHz / 192kbps');
+  console.log('- Qualidade: 192kbps MP3');
 });
