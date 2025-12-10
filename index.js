@@ -22,7 +22,7 @@ const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
 
 // ElevenLabs TTS
 const ELEVENLABS_API_KEY =
-  process.env.ELEVENLABS_API_KEY || 'c9bd234946e0599d1e08f62d589581dcb2e1c75bc5eeb058452bb975aa540820';
+  process.env.ELEVENLABS_API_KEY || 'sk_82766fdc34158d9b1d0dc5ba5696184a7c063b0d398e7fac';
 const ELEVENLABS_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
