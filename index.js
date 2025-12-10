@@ -171,7 +171,7 @@ async function gerarAudioElevenLabs(texto) {
           speed: 1.0 // Velocidade natural/normal
         },
         // Configura saída em MP3 de boa qualidade
-        output_format: 'mp3_44100_192'
+        output_format: 'mp3_44100_128'
       },
       {
         headers: {
