@@ -372,10 +372,11 @@ app.post('/tts', async (req, res) => {
 
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
-    console.log('Texto com pausa inicial:', textoComPausa);
 
     // 2) Adiciona pausa suave no início para evitar início abrupto
     const textoComPausa = `. ${textoAjustado}`;
+    
+    console.log('Texto com pausa inicial:', textoComPausa);
     
     // 3) Gera o áudio com ElevenLabs (voz Roberta humanizada)
     let audioBuffer;
