@@ -168,6 +168,7 @@ async function gerarAudioElevenLabs(texto) {
       {
         text: texto,
         model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
+        language_code: 'pt-BR',
         voice_settings: {
           stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
           similarity_boost: 0.8,       // Balanceado para clareza sem metalização
@@ -177,6 +178,7 @@ async function gerarAudioElevenLabs(texto) {
         },
         // Configurações adicionais para melhor qualidade
         pronunciation_dictionary_locators: [],
+        apply_text_normalization: 'auto',
         apply_language_text_normalization: true
       },
       {
