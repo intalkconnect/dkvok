@@ -30,7 +30,7 @@ const ELEVENLABS_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
-  process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'; // modelo mais natural que turbo
+  process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // melhor para estabilidade e velocidade
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -79,18 +79,21 @@ REGRAS DE LINGUAGEM E ESTILO:
 
 PARA HUMANIZAÇÃO DA FALA:
 - Adicione pausas naturais usando vírgulas e pontos estrategicamente.
-- Quebre frases muito longas em sentenças menores e mais respiráveis.
-- Adicione palavras de transição naturais quando apropriado (então, bem, veja, olha, etc.)
-- Use contrações comuns da fala brasileira quando soarem naturais (pra, tá, né - mas com moderação)
-- Adicione pequenas reticências (...) para pausas pensativas quando fizer sentido.
+- Quebre frases muito longas em sentenças menores e mais respiráveis (máximo 15-20 palavras por frase).
+- Use palavras de transição naturais quando apropriado (então, bem, veja, olha, etc.)
+- Evite palavras muito longas ou complexas - prefira sinônimos mais simples e curtos.
+- Mantenha ritmo constante - evite acelerar ou desacelerar no meio das frases.
+- Adicione vírgulas antes de palavras que naturalmente causam pausa (mas, porém, pois, quando, etc.)
+- NÃO use reticências (...) - elas podem causar instabilidade na voz.
 - Evite linguagem muito formal ou robótica - escreva como uma pessoa falaria naturalmente.
 
 PONTUAÇÃO PARA TTS:
 - Use vírgulas para criar pausas curtas e naturais na fala.
 - Use pontos para separar ideias e criar respirações.
-- Use reticências (...) para pausas mais longas ou momentos de reflexão.
+- Evite reticências (...) - podem causar tremulação na voz.
 - Coloque vírgula após palavras introdutórias (Bem, Então, Olha, Veja, etc.)
 - Use pontos de interrogação e exclamação com naturalidade, mas sem exageros.
+- Coloque ponto final em TODAS as frases - nunca deixe frases sem pontuação final.
 
 RESTRIÇÕES DE CONTEÚDO:
 - Mantenha o significado e tom geral original da mensagem.
@@ -167,11 +170,11 @@ async function gerarAudioElevenLabs(texto) {
         model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
         language_code: 'pt-BR',
         voice_settings: {
-          stability: 0.5,              // Reduzido para mais variação natural (era 0.7)
-          similarity_boost: 0.75,      // Reduzido para menos metalização (era 0.9)
-          style: 0.4,                  // Aumentado para mais expressividade (era 0.3)
-          speed: 1.0,                  // Velocidade natural/normal (era 0.95)
-          use_speaker_boost: true      // Mantém para clareza
+          stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
+          similarity_boost: 0.8,       // Balanceado para clareza sem metalização
+          style: 0.25,                 // Reduzido para menos variação no final das palavras
+          speed: 1.0,                  // Velocidade natural/normal
+          use_speaker_boost: true      // Mantém para clareza e consistência
         },
         // Configurações adicionais para melhor qualidade
         pronunciation_dictionary_locators: [],
@@ -454,8 +457,9 @@ app.post('/stt', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz humanizada rodando na porta ${PORT}`);
-  console.log('Configurações de qualidade:');
+  console.log('Configurações otimizadas para reduzir tremulação:');
   console.log('- Modelo ElevenLabs:', ELEVENLABS_MODEL_ID);
-  console.log('- Qualidade de áudio: 192kbps MP3');
-  console.log('- Humanização: Ativada');
+  console.log('- Stability: 0.65 (equilibrado)');
+  console.log('- Style: 0.25 (controlado)');
+  console.log('- Qualidade: 192kbps MP3');
 });
