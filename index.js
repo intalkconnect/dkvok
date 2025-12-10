@@ -53,6 +53,86 @@ const r2Client = new S3Client({
 // AJUSTE DE TEXTO PARA FALA (CHAT OPENAI)
 // ----------------------------------------------------
 
+async function ajustarTextoParaFala(textoOriginal) {
+  if (!OPENAI_API_KEY) {
+    // Se não tiver OpenAI configurado, segue com o texto original
+    return textoOriginal;
+  }
+
+  try {
+    const prompt = `
+You are a VIRTUAL CUSTOMER SERVICE VOICE AGENT.
+
+Goal:
+Rewrite the text below so it sounds natural when spoken by a text-to-speech (TTS) voice, keeping the original meaning, but making it warm, clear and professional for Brazilian Portuguese (pt-BR).
+
+Language and style rules:
+- You MUST ALWAYS write in Brazilian Portuguese (pt-BR), using Brazilian vocabulary, spelling and expressions.
+- NEVER use European Portuguese words or spelling.
+  Examples:
+  - Use "trem", not "comboio".
+  - Use "ônibus", not "autocarro".
+  - Use "caminhão", not "camioneta".
+  - Use "você/vocês" as the neutral form; avoid "tu/vós" unless it is already in the original text.
+- Keep a friendly, respectful and professional tone, like an experienced customer service agent.
+- Do NOT say that you are human or that you can take physical actions.
+
+For TTS:
+- Improve punctuation (.,?!).
+- Break very long sentences into shorter ones so they sound natural when spoken.
+- Use commas and periods to create natural pauses in speech.
+- You do NOT need to limit the length of the answer; just keep it clear and natural.
+
+Content constraints:
+- Keep the original meaning and overall tone of the message.
+- Do NOT add new information, offers or questions that are not in the original text.
+- Do NOT change the grammatical person (eu / você / nós) except for very small adjustments needed for fluency.
+- Do NOT use quotation marks, tags, SSML, markdown or comments.
+- Return ONLY the final text, ready to be spoken out loud in Brazilian Portuguese.
+
+Original text:
+"""${textoOriginal}"""
+`;
+
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: OPENAI_TEXT_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a virtual customer service voice agent. ' +
+              'You must ALWAYS respond in Brazilian Portuguese (pt-BR), using Brazilian vocabulary and expressions. ' +
+              'Your only job is to rewrite the provided text so it sounds natural when spoken by TTS, without adding any new information.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const textoFormatado = response.data.choices[0].message.content.trim();
+    return textoFormatado || textoOriginal;
+  } catch (err) {
+    console.error('Erro ao ajustar texto para fala:', err?.response?.data || err.message || err);
+    return textoOriginal;
+  }
+}
+
+// ----------------------------------------------------
+// TTS ELEVENLABS (texto -> áudio MP3)
+// ----------------------------------------------------
+
 async function gerarAudioElevenLabs(texto) {
   if (!ELEVENLABS_API_KEY) {
     throw new Error('ELEVENLABS_API_KEY não configurada');
@@ -72,7 +152,7 @@ async function gerarAudioElevenLabs(texto) {
       url,
       {
         text: texto,
-        model_id: ELEVENLABS_MODEL_ID, // ex.: "eleven_multilingual_v2" ou "eleven_turbo_v2_5"
+        model_id: ELEVENLABS_MODEL_ID,      // ex.: "eleven_turbo_v2_5" ou "eleven_multilingual_v2"
         language_code: 'pt-BR',
         voice_settings: {
           stability: 0.7,
@@ -113,87 +193,6 @@ async function gerarAudioElevenLabs(texto) {
         try {
           const json = JSON.parse(text);
           console.error('Erro JSON parseado ElevenLabs:', json);
-        } catch (e) {}
-      } else {
-        console.error('Corpo de erro ElevenLabs:', body);
-      }
-    } else {
-      console.error('Erro TTS ElevenLabs sem body:', err.message || err);
-    }
-
-    throw new Error('Falha ao chamar TTS da ElevenLabs');
-  }
-}
-
-
-// ----------------------------------------------------
-// TTS ELEVENLABS (texto -> áudio MP3)
-// ----------------------------------------------------
-
-async function gerarAudioElevenLabs(texto) {
-  if (!ELEVENLABS_API_KEY) {
-    throw new Error('ELEVENLABS_API_KEY não configurada');
-  }
-
-  if (!ELEVENLABS_VOICE_ID || ELEVENLABS_VOICE_ID === 'roberta') {
-    console.warn(
-      'ATENÇÃO: ELEVENLABS_VOICE_ID_ROBERTA não configurada. ' +
-        'Configure o voice_id real da Roberta no .env para maior estabilidade.'
-    );
-  }
-
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
-
-  try {
-    const response = await axios.post(
-      url,
-      const response = await axios.post(
-  `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
-  {
-    text: texto,
-    model_id: ELEVENLABS_MODEL_ID,       // ex: "eleven_multilingual_v2"
-    language_code: 'pt-BR',
-    // Deixa a voz mais estável, natural e um pouco mais calma
-    voice_settings: {
-      stability: 0.7,            // ↑ mais estabilidade, menos variação estranha
-      similarity_boost: 0.9,     // mantém bem o timbre da Roberta
-      style: 0.3,                // leve variação de expressividade
-      speed: 0.95,               // um pouco mais devagar, mais natural em atendimento
-      use_speaker_boost: true    // deixa a voz mais clara em celular
-    },
-    apply_text_normalization: 'auto',
-    apply_language_text_normalization: true
-  },
-  {
-    headers: {
-      'xi-api-key': ELEVENLABS_API_KEY,
-      'Content-Type': 'application/json',
-      Accept: 'audio/mpeg'
-    },
-    // formato focado em qualidade, sem otimização agressiva de latência
-    params: {
-      output_format: 'mp3_44100_128',
-      optimize_streaming_latency: 0
-    },
-    responseType: 'arraybuffer',
-    timeout: 30000 // 30s
-  }
-    );
-
-    return Buffer.from(response.data);
-  } catch (err) {
-    const status = err?.response?.status;
-    let body = err?.response?.data;
-
-    console.error('Erro na chamada TTS da ElevenLabs. Status:', status);
-
-    if (body) {
-      if (Buffer.isBuffer(body)) {
-        const text = body.toString('utf8');
-        console.error('Corpo de erro (texto):', text);
-        try {
-          const json = JSON.parse(text);
-          console.error('Erro JSON parseado ElevenLabs:', json);
         } catch (e) {
           // Ignora erro de parse
         }
@@ -207,6 +206,7 @@ async function gerarAudioElevenLabs(texto) {
     throw new Error('Falha ao chamar TTS da ElevenLabs');
   }
 }
+
 
 // ----------------------------------------------------
 // (OPCIONAL) TTS OPENAI COMO FALLBACK
