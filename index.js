@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const FormData = require('form-data');
+const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
 // ----------------------------------------------------
 // APP
@@ -20,17 +21,22 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // Modelo para formatar texto (chat)
 const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
 
-// (Mantido caso você queira fallback em TTS, mas não é usado diretamente agora)
-const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
-const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'alloy';
-
 // ElevenLabs TTS
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || 'c9bd234946e0599d1e08f62d589581dcb2e1c75bc5eeb058452bb975aa540820';
+const ELEVENLABS_API_KEY =
+  process.env.ELEVENLABS_API_KEY ||
+  'c9bd234946e0599d1e08f62d589581dcb2e1c75bc5eeb058452bb975aa540820';
 const ELEVENLABS_VOICE_ID =
-  process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
+  process.env.ELEVENLABS_VOICE_ID_ROBERTA ||
+  process.env.ELEVENLABS_VOICE_ID ||
+  'RGymW84CSmfVugnA5tvA' || 'roberta';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
   process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'; // melhor para estabilidade e velocidade
+
+// Cliente oficial ElevenLabs
+const elevenlabs = new ElevenLabsClient({
+  apiKey: ELEVENLABS_API_KEY
+});
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -145,7 +151,7 @@ Texto humanizado para fala:
 }
 
 // ----------------------------------------------------
-// TTS ELEVENLABS (texto -> áudio MP3)
+// TTS ELEVENLABS (texto -> áudio MP3) VIA SDK
 // ----------------------------------------------------
 
 async function gerarAudioElevenLabs(texto) {
@@ -160,114 +166,42 @@ async function gerarAudioElevenLabs(texto) {
     );
   }
 
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
-
   try {
-    const response = await axios.post(
-      url,
-      {
-        text: texto,
-        model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
-        voice_settings: {
-          stability: 0.4,             // Aumentado para reduzir tremulação (sweet spot)
-          similarity_boost: 0.7,       // Balanceado para clareza sem metalização
-          style: 0.25,                 // Reduzido para menos variação no final das palavras
-          speed: 1.0,                  // Velocidade natural/normal
-        },
-        // Configurações adicionais para melhor qualidade
-        pronunciation_dictionary_locators: [],
-        apply_text_normalization: 'auto'
-      },
-      {
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json'
-        }
+    const stream = await elevenlabs.textToSpeech.convert(ELEVENLABS_VOICE_ID, {
+      text: texto,
+      // usando a chave model_id conforme exemplos oficiais
+      model_id: ELEVENLABS_MODEL_ID,
+      // garante saída MP3 44.1kHz 192kbps
+      outputFormat: 'mp3_44100_192',
+      voiceSettings: {
+        stability: 0.4,        // reduz tremulação
+        similarityBoost: 0.7,  // equilíbrio entre clareza e naturalidade
+        style: 0.25,           // menos dramatização
+        speakingRate: 1.0      // velocidade natural
       }
-    );
+    });
 
-    return Buffer.from(response.data);
-  } catch (err) {
-    const status = err?.response?.status;
-    let body = err?.response?.data;
-
-    console.error('Erro na chamada TTS da ElevenLabs. Status:', status);
-
-    if (body) {
-      if (Buffer.isBuffer(body)) {
-        const text = body.toString('utf8');
-        console.error('Corpo de erro (texto):', text);
-        try {
-          const json = JSON.parse(text);
-          console.error('Erro JSON parseado ElevenLabs:', json);
-        } catch (e) {
-          // Ignora erro de parse
-        }
-      } else {
-        console.error('Corpo de erro ElevenLabs:', body);
-      }
-    } else {
-      console.error('Erro TTS ElevenLabs sem body:', err.message || err);
+    if (!stream) {
+      throw new Error('Falha na geração de áudio (stream vazio)');
     }
 
+    const chunks = [];
+
+    for await (const chunk of stream) {
+      // garante que tudo vire Buffer
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+
+    const audioBuffer = Buffer.concat(chunks);
+
+    if (!audioBuffer.length) {
+      throw new Error('Falha na geração de áudio (buffer vazio)');
+    }
+
+    return audioBuffer;
+  } catch (err) {
+    console.error('Erro na chamada TTS da ElevenLabs:', err?.response?.data || err.message || err);
     throw new Error('Falha ao chamar TTS da ElevenLabs');
-  }
-}
-
-
-// ----------------------------------------------------
-// (OPCIONAL) TTS OPENAI COMO FALLBACK
-// ----------------------------------------------------
-
-async function gerarAudioOpenAI(texto) {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY não configurada');
-  }
-
-  try {
-    const response = await axios.post(
-      'https://api.openai.com/v1/audio/speech',
-      {
-        model: OPENAI_TTS_MODEL,
-        voice: OPENAI_TTS_VOICE,
-        input: texto,
-        speed: 1.0, // velocidade natural
-        format: 'opus'
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        responseType: 'arraybuffer'
-      }
-    );
-
-    return Buffer.from(response.data);
-  } catch (err) {
-    const status = err?.response?.status;
-    let body = err?.response?.data;
-
-    console.error('Erro na chamada TTS da OpenAI (fallback). Status:', status);
-
-    if (body) {
-      if (Buffer.isBuffer(body)) {
-        const text = body.toString('utf8');
-        console.error('Corpo de erro (texto):', text);
-        try {
-          const json = JSON.parse(text);
-          console.error('Erro JSON parseado:', json);
-        } catch (e) {
-          // Ignora erro de parse
-        }
-      } else {
-        console.error('Corpo de erro:', body);
-      }
-    } else {
-      console.error('Erro TTS OpenAI sem body:', err.message || err);
-    }
-
-    throw new Error('Falha ao chamar TTS da OpenAI (fallback)');
   }
 }
 
@@ -363,34 +297,21 @@ app.post('/tts', async (req, res) => {
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
 
-    // 2) Adiciona pausa suave no início para evitar início abrupto
-    const textoComPausa = `<break time="1.5s" /> ${textoAjustado}`;
-    
+    // 2) Pausa suave apenas por pontuação (sem SSML)
+    const textoComPausa = `, ${textoAjustado}`;
+
     console.log('Texto com pausa inicial:', textoComPausa);
-    
+
     // 3) Gera o áudio com ElevenLabs (voz Roberta humanizada)
-    let audioBuffer;
-    try {
-      audioBuffer = await gerarAudioElevenLabs(textoComPausa);
-    } catch (errEleven) {
-      console.error('Falha ElevenLabs TTS:', errEleven?.message || errEleven);
+    const audioBuffer = await gerarAudioElevenLabs(textoComPausa);
 
-      // Fallback opcional para OpenAI se configurado
-      if (OPENAI_API_KEY) {
-        console.warn('Tentando fallback TTS com OpenAI...');
-        audioBuffer = await gerarAudioOpenAI(textoAjustado);
-      } else {
-        throw errEleven;
-      }
-    }
-
-    // 3) Salva o áudio no Cloudflare R2 como MP3
+    // 4) Salva o áudio no Cloudflare R2 como MP3
     const { uri, size } = await salvarNoR2(audioBuffer, userId, {
       extension: 'mp3',
       contentType: 'audio/mpeg'
     });
 
-    // 4) Retorna para o chamador (ex.: Blip)
+    // 5) Retorna para o chamador (ex.: Blip)
     return res.json({
       uri,
       type: 'audio/mpeg',
@@ -454,7 +375,7 @@ app.listen(PORT, () => {
   console.log(`API de voz humanizada rodando na porta ${PORT}`);
   console.log('Configurações otimizadas para reduzir tremulação:');
   console.log('- Modelo ElevenLabs:', ELEVENLABS_MODEL_ID);
-  console.log('- Stability: 0.65 (equilibrado)');
+  console.log('- Stability: 0.4 (equilibrado)');
   console.log('- Style: 0.25 (controlado)');
   console.log('- Qualidade: 192kbps MP3');
 });
