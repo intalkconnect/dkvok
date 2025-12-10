@@ -171,7 +171,7 @@ async function gerarAudioElevenLabs(texto) {
         language_code: 'pt-BR',
         voice_settings: {
           stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
-          similarity_boost: 0.8,       // Balanceado para clareza sem metalização
+          similarity_boost: 0.7,       // Balanceado para clareza sem metalização
           style: 0.25,                 // Reduzido para menos variação no final das palavras
           speed: 1.0,                  // Velocidade natural/normal
           use_speaker_boost: true      // Mantém para clareza e consistência
@@ -373,8 +373,9 @@ app.post('/tts', async (req, res) => {
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
 
-    // 2) Adiciona pausa suave no início para evitar início abrupto
-    const textoComPausa = `. ${textoAjustado}`;
+    // 2) Adiciona pausa de ~1s no início para evitar início abrupto
+    // Múltiplos pontos criam uma pausa mais longa no TTS
+    const textoComPausa = `... ... ${textoAjustado}`;
     
     console.log('Texto com pausa inicial:', textoComPausa);
     
