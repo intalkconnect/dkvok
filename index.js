@@ -27,10 +27,10 @@ const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'alloy';
 // ElevenLabs TTS
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || 'c9bd234946e0599d1e08f62d589581dcb2e1c75bc5eeb058452bb975aa540820';
 const ELEVENLABS_VOICE_ID =
-  process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
+  process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
-  process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // melhor para estabilidade e velocidade
+  process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'; // modelo mais natural e menos metálico
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -84,13 +84,13 @@ PARA HUMANIZAÇÃO DA FALA:
 - Evite palavras muito longas ou complexas - prefira sinônimos mais simples e curtos.
 - Mantenha ritmo constante - evite acelerar ou desacelerar no meio das frases.
 - Adicione vírgulas antes de palavras que naturalmente causam pausa (mas, porém, pois, quando, etc.)
-- NÃO use reticências (...) - elas podem causar instabilidade na voz.
+- NÃO use reticências (...) no meio do texto - elas podem causar instabilidade na voz.
 - Evite linguagem muito formal ou robótica - escreva como uma pessoa falaria naturalmente.
 
 PONTUAÇÃO PARA TTS:
 - Use vírgulas para criar pausas curtas e naturais na fala.
 - Use pontos para separar ideias e criar respirações.
-- Evite reticências (...) - podem causar tremulação na voz.
+- Evite reticências (...) no meio do texto - podem causar tremulação na voz.
 - Coloque vírgula após palavras introdutórias (Bem, Então, Olha, Veja, etc.)
 - Use pontos de interrogação e exclamação com naturalidade, mas sem exageros.
 - Coloque ponto final em TODAS as frases - nunca deixe frases sem pontuação final.
@@ -167,14 +167,14 @@ async function gerarAudioElevenLabs(texto) {
       url,
       {
         text: texto,
-        model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
+        model_id: ELEVENLABS_MODEL_ID,
         language_code: 'pt-BR',
         voice_settings: {
-          stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
-          similarity_boost: 0.8,       // Balanceado para clareza sem metalização
-          style: 0.25,                 // Reduzido para menos variação no final das palavras
-          speed: 1.0,                  // Velocidade natural/normal
-          use_speaker_boost: true      // Mantém para clareza e consistência
+          stability: 0.55,             // Levemente reduzido para naturalidade
+          similarity_boost: 0.75,      // Reduzido para menos metalização
+          style: 0.2,                  // Bem controlado para evitar tremulação
+          speed: 0.95,                 // Levemente mais devagar para parecer natural
+          use_speaker_boost: true      // Mantém para clareza
         },
         // Configurações adicionais para melhor qualidade
         pronunciation_dictionary_locators: [],
@@ -188,11 +188,11 @@ async function gerarAudioElevenLabs(texto) {
           Accept: 'audio/mpeg'
         },
         params: {
-          output_format: 'mp3_44100_192',    // Aumentado para 192kbps (melhor qualidade)
+          output_format: 'mp3_44100_192',    // 192kbps para qualidade superior
           optimize_streaming_latency: 0      // Sem otimização de latência = melhor qualidade
         },
         responseType: 'arraybuffer',
-        timeout: 45000 // 45s (aumentado por conta da melhor qualidade)
+        timeout: 45000 // 45s
       }
     );
 
@@ -373,7 +373,7 @@ app.post('/tts', async (req, res) => {
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
 
-    // 2) Adiciona pausa suave no início para evitar início abrupto
+    // 2) Adiciona pausa de ~1s no início para evitar início abrupto
     const textoComPausa = `... ... ${textoAjustado}`;
     
     console.log('Texto com pausa inicial:', textoComPausa);
@@ -394,13 +394,13 @@ app.post('/tts', async (req, res) => {
       }
     }
 
-    // 3) Salva o áudio no Cloudflare R2 como MP3
+    // 4) Salva o áudio no Cloudflare R2 como MP3
     const { uri, size } = await salvarNoR2(audioBuffer, userId, {
       extension: 'mp3',
       contentType: 'audio/mpeg'
     });
 
-    // 4) Retorna para o chamador (ex.: Blip)
+    // 5) Retorna para o chamador (ex.: Blip)
     return res.json({
       uri,
       type: 'audio/mpeg',
@@ -462,9 +462,11 @@ app.post('/stt', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz humanizada rodando na porta ${PORT}`);
-  console.log('Configurações otimizadas para reduzir tremulação:');
-  console.log('- Modelo ElevenLabs:', ELEVENLABS_MODEL_ID);
-  console.log('- Stability: 0.65 (equilibrado)');
-  console.log('- Style: 0.25 (controlado)');
+  console.log('Configurações otimizadas (natural e menos metálico):');
+  console.log('- Modelo:', ELEVENLABS_MODEL_ID);
+  console.log('- Stability: 0.55');
+  console.log('- Similarity Boost: 0.75 (reduz metalização)');
+  console.log('- Style: 0.2 (controlado)');
+  console.log('- Speed: 0.95 (levemente mais devagar)');
   console.log('- Qualidade: 192kbps MP3');
 });
