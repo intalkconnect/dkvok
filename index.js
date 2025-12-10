@@ -364,7 +364,7 @@ app.post('/tts', async (req, res) => {
     console.log('Texto humanizado:', textoAjustado);
 
     // 2) Adiciona pausa suave no início para evitar início abrupto
-    const textoComPausa = `. ${textoAjustado}`;
+    const textoComPausa = `<break time="1.5s" /> ${textoAjustado}`;
     
     console.log('Texto com pausa inicial:', textoComPausa);
     
