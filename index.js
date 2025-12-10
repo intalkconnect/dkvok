@@ -15,7 +15,7 @@ app.use(express.json());
 // ----------------------------------------------------
 
 // OpenAI (ajuste de texto + Whisper)
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ;
 
 // Modelo para formatar texto (chat)
 const OPENAI_TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini';
