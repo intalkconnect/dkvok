@@ -168,17 +168,15 @@ async function gerarAudioElevenLabs(texto) {
       {
         text: texto,
         model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
-        language_code: 'pt-BR',
         voice_settings: {
           stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
-          similarity_boost: 0.7,       // Balanceado para clareza sem metalização
+          similarity_boost: 0.8,       // Balanceado para clareza sem metalização
           style: 0.25,                 // Reduzido para menos variação no final das palavras
           speed: 1.0,                  // Velocidade natural/normal
           use_speaker_boost: true      // Mantém para clareza e consistência
         },
         // Configurações adicionais para melhor qualidade
         pronunciation_dictionary_locators: [],
-        apply_text_normalization: 'auto',
         apply_language_text_normalization: true
       },
       {
@@ -290,7 +288,7 @@ async function salvarNoR2(buffer, userId = 'anonimo', options = {}) {
     throw new Error('Config R2 faltando (R2_BUCKET ou R2_PUBLIC_BASE_URL)');
   }
 
-  const { extension = 'ogg', contentType = 'audio/ogg' } = options;
+  const { extension = 'mp3', contentType = 'audio/mpeg' } = options;
 
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -373,9 +371,8 @@ app.post('/tts', async (req, res) => {
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
 
-    // 2) Adiciona pausa de ~1s no início para evitar início abrupto
-    // Múltiplos pontos criam uma pausa mais longa no TTS
-    const textoComPausa = `... ... ${textoAjustado}`;
+    // 2) Adiciona pausa suave no início para evitar início abrupto
+    const textoComPausa = `... ${textoAjustado}`;
     
     console.log('Texto com pausa inicial:', textoComPausa);
     
