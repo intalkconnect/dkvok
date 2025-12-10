@@ -30,7 +30,7 @@ const ELEVENLABS_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
-  process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'; // modelo mais natural e menos metálico
+  process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // melhor para português brasileiro
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -170,10 +170,10 @@ async function gerarAudioElevenLabs(texto) {
         model_id: ELEVENLABS_MODEL_ID,
         language_code: 'pt-BR',
         voice_settings: {
-          stability: 0.55,             // Levemente reduzido para naturalidade
+          stability: 0.60,             // Balanceado para naturalidade
           similarity_boost: 0.75,      // Reduzido para menos metalização
-          style: 0.2,                  // Bem controlado para evitar tremulação
-          speed: 0.95,                 // Levemente mais devagar para parecer natural
+          style: 0.15,                 // Bem controlado para evitar tremulação
+          speed: 0.92,                 // Levemente mais devagar = mais natural
           use_speaker_boost: true      // Mantém para clareza
         },
         // Configurações adicionais para melhor qualidade
@@ -462,11 +462,11 @@ app.post('/stt', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`API de voz humanizada rodando na porta ${PORT}`);
-  console.log('Configurações otimizadas (natural e menos metálico):');
-  console.log('- Modelo:', ELEVENLABS_MODEL_ID);
-  console.log('- Stability: 0.55');
-  console.log('- Similarity Boost: 0.75 (reduz metalização)');
-  console.log('- Style: 0.2 (controlado)');
-  console.log('- Speed: 0.95 (levemente mais devagar)');
+  console.log('Configurações otimizadas (pt-BR natural):');
+  console.log('- Modelo:', ELEVENLABS_MODEL_ID, '(otimizado para pt-BR)');
+  console.log('- Stability: 0.60');
+  console.log('- Similarity Boost: 0.75');
+  console.log('- Style: 0.15');
+  console.log('- Speed: 0.92');
   console.log('- Qualidade: 192kbps MP3');
 });
