@@ -181,15 +181,8 @@ async function gerarAudioElevenLabs(texto) {
       {
         headers: {
           'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
-          Accept: 'audio/mpeg'
-        },
-        params: {
-          output_format: 'opus_48000_128',    // Aumentado para 192kbps (melhor qualidade)
-          optimize_streaming_latency: 0      // Sem otimização de latência = melhor qualidade
-        },
-        responseType: 'arraybuffer',
-        timeout: 45000 // 45s (aumentado por conta da melhor qualidade)
+          'Content-Type': 'application/json'
+        }
       }
     );
 
