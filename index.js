@@ -172,7 +172,7 @@ async function gerarAudioElevenLabs(texto) {
       // usando a chave model_id conforme exemplos oficiais
       model_id: ELEVENLABS_MODEL_ID,
       // garante saída MP3 44.1kHz 192kbps
-      outputFormat: 'mp3_44100_192',
+      outputFormat: 'mp3_44100_128',
       voiceSettings: {
         stability: 0.4,        // reduz tremulação
         similarityBoost: 0.7,  // equilíbrio entre clareza e naturalidade
