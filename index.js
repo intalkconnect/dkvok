@@ -30,7 +30,7 @@ const ELEVENLABS_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
-  process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // melhor para estabilidade e velocidade
+  process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'; // melhor para estabilidade e velocidade
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -168,18 +168,15 @@ async function gerarAudioElevenLabs(texto) {
       {
         text: texto,
         model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
-        language_code: 'pt-BR',
         voice_settings: {
-          stability: 0.65,             // Aumentado para reduzir tremulação (sweet spot)
+          stability: 0.4,             // Aumentado para reduzir tremulação (sweet spot)
           similarity_boost: 0.8,       // Balanceado para clareza sem metalização
           style: 0.25,                 // Reduzido para menos variação no final das palavras
           speed: 1.0,                  // Velocidade natural/normal
-          use_speaker_boost: true      // Mantém para clareza e consistência
         },
         // Configurações adicionais para melhor qualidade
         pronunciation_dictionary_locators: [],
-        apply_text_normalization: 'auto',
-        apply_language_text_normalization: true
+        apply_text_normalization: 'auto'
       },
       {
         headers: {
@@ -188,7 +185,7 @@ async function gerarAudioElevenLabs(texto) {
           Accept: 'audio/mpeg'
         },
         params: {
-          output_format: 'mp3_44100_192',    // Aumentado para 192kbps (melhor qualidade)
+          output_format: 'opus_48000_128',    // Aumentado para 192kbps (melhor qualidade)
           optimize_streaming_latency: 0      // Sem otimização de latência = melhor qualidade
         },
         responseType: 'arraybuffer',
