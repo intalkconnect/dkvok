@@ -172,7 +172,6 @@ async function gerarAudioElevenLabsPtBR(texto) {
           emotion: 'neutral'           // Emoção neutra para clareza
         },
         pronunciation_dictionary_locators: [],
-        apply_text_normalization: 'auto',
         apply_language_text_normalization: true,
         generation_config: {
           chunk_length_schedule: [120, 160, 250, 290]
