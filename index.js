@@ -30,7 +30,7 @@ const ELEVENLABS_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID_ROBERTA || process.env.ELEVENLABS_VOICE_ID || 'RGymW84CSmfVugnA5tvA' || 'roberta';
 // Obs.: ideal é SEMPRE usar o voice_id real da Roberta, não apenas o nome.
 const ELEVENLABS_MODEL_ID =
-  process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // pode trocar para eleven_flash_v2_5 se preferir
+  process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2'; // modelo mais natural que turbo
 
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -61,37 +61,48 @@ async function ajustarTextoParaFala(textoOriginal) {
 
   try {
     const prompt = `
-You are a VIRTUAL CUSTOMER SERVICE VOICE AGENT.
+Você é um assistente especializado em preparar textos para serem falados de forma NATURAL e HUMANIZADA por um agente de voz.
 
-Goal:
-Rewrite the text below so it sounds natural when spoken by a text-to-speech (TTS) voice, keeping the original meaning, but making it warm, clear and professional for Brazilian Portuguese (pt-BR).
+OBJETIVO:
+Reescreva o texto abaixo para soar completamente natural quando falado por TTS (text-to-speech), mantendo o significado original, mas tornando-o caloroso, claro e profissional para o português brasileiro (pt-BR).
 
-Language and style rules:
-- You MUST ALWAYS write in Brazilian Portuguese (pt-BR), using Brazilian vocabulary, spelling and expressions.
-- NEVER use European Portuguese words or spelling.
-  Examples:
-  - Use "trem", not "comboio".
-  - Use "ônibus", not "autocarro".
-  - Use "caminhão", not "camioneta".
-  - Use "você/vocês" as the neutral form; avoid "tu/vós" unless it is already in the original text.
-- Keep a friendly, respectful and professional tone, like an experienced customer service agent.
-- Do NOT say that you are human or that you can take physical actions.
+REGRAS DE LINGUAGEM E ESTILO:
+- Você DEVE SEMPRE escrever em português brasileiro (pt-BR), usando vocabulário, ortografia e expressões brasileiras.
+- NUNCA use palavras ou ortografia do português europeu.
+  Exemplos:
+  - Use "trem", não "comboio"
+  - Use "ônibus", não "autocarro"
+  - Use "caminhão", não "camioneta"
+  - Use "você/vocês" como forma neutra; evite "tu/vós" a menos que já esteja no texto original
+- Mantenha um tom amigável, respeitoso e profissional, como um atendente experiente.
+- NÃO diga que você é humano ou que pode realizar ações físicas.
 
-For TTS:
-- Improve punctuation (.,?!).
-- Break very long sentences into shorter ones so they sound natural when spoken.
-- Use commas and periods to create natural pauses in speech.
-- You do NOT need to limit the length of the answer; just keep it clear and natural.
+PARA HUMANIZAÇÃO DA FALA:
+- Adicione pausas naturais usando vírgulas e pontos estrategicamente.
+- Quebre frases muito longas em sentenças menores e mais respiráveis.
+- Adicione palavras de transição naturais quando apropriado (então, bem, veja, olha, etc.)
+- Use contrações comuns da fala brasileira quando soarem naturais (pra, tá, né - mas com moderação)
+- Adicione pequenas reticências (...) para pausas pensativas quando fizer sentido.
+- Evite linguagem muito formal ou robótica - escreva como uma pessoa falaria naturalmente.
 
-Content constraints:
-- Keep the original meaning and overall tone of the message.
-- Do NOT add new information, offers or questions that are not in the original text.
-- Do NOT change the grammatical person (eu / você / nós) except for very small adjustments needed for fluency.
-- Do NOT use quotation marks, tags, SSML, markdown or comments.
-- Return ONLY the final text, ready to be spoken out loud in Brazilian Portuguese.
+PONTUAÇÃO PARA TTS:
+- Use vírgulas para criar pausas curtas e naturais na fala.
+- Use pontos para separar ideias e criar respirações.
+- Use reticências (...) para pausas mais longas ou momentos de reflexão.
+- Coloque vírgula após palavras introdutórias (Bem, Então, Olha, Veja, etc.)
+- Use pontos de interrogação e exclamação com naturalidade, mas sem exageros.
 
-Original text:
+RESTRIÇÕES DE CONTEÚDO:
+- Mantenha o significado e tom geral original da mensagem.
+- NÃO adicione novas informações, ofertas ou perguntas que não estejam no texto original.
+- NÃO mude a pessoa gramatical (eu / você / nós) exceto para pequenos ajustes de fluência.
+- NÃO use aspas, tags, SSML, markdown ou comentários.
+- Retorne APENAS o texto final, pronto para ser falado em português brasileiro.
+
+Texto original:
 """${textoOriginal}"""
+
+Texto humanizado para fala:
 `;
 
     const response = await axios.post(
@@ -102,16 +113,17 @@ Original text:
           {
             role: 'system',
             content:
-              'You are a virtual customer service voice agent. ' +
-              'You must ALWAYS respond in Brazilian Portuguese (pt-BR), using Brazilian vocabulary and expressions. ' +
-              'Your only job is to rewrite the provided text so it sounds natural when spoken by TTS, without adding any new information.'
+              'Você é um especialista em adaptar textos para fala natural em TTS. ' +
+              'Você SEMPRE responde em português brasileiro (pt-BR), usando vocabulário e expressões brasileiras. ' +
+              'Seu trabalho é reescrever textos para soarem naturais e humanizados quando falados, ' +
+              'sem adicionar informações novas. Foque em criar pausas naturais e usar linguagem conversacional.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.3
+        temperature: 0.4 // um pouco mais de criatividade para humanização
       },
       {
         headers: {
@@ -152,15 +164,17 @@ async function gerarAudioElevenLabs(texto) {
       url,
       {
         text: texto,
-        model_id: ELEVENLABS_MODEL_ID,      // ex.: "eleven_turbo_v2_5" ou "eleven_multilingual_v2"
+        model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
         language_code: 'pt-BR',
         voice_settings: {
-          stability: 0.7,
-          similarity_boost: 0.9,
-          style: 0.3,
-          speed: 0.95,
-          use_speaker_boost: true
+          stability: 0.5,              // Reduzido para mais variação natural (era 0.7)
+          similarity_boost: 0.75,      // Reduzido para menos metalização (era 0.9)
+          style: 0.4,                  // Aumentado para mais expressividade (era 0.3)
+          speed: 1.0,                  // Velocidade natural/normal (era 0.95)
+          use_speaker_boost: true      // Mantém para clareza
         },
+        // Configurações adicionais para melhor qualidade
+        pronunciation_dictionary_locators: [],
         apply_text_normalization: 'auto',
         apply_language_text_normalization: true
       },
@@ -171,11 +185,11 @@ async function gerarAudioElevenLabs(texto) {
           Accept: 'audio/mpeg'
         },
         params: {
-          output_format: 'mp3_44100_128',
-          optimize_streaming_latency: 0
+          output_format: 'mp3_44100_192',    // Aumentado para 192kbps (melhor qualidade)
+          optimize_streaming_latency: 0      // Sem otimização de latência = melhor qualidade
         },
         responseType: 'arraybuffer',
-        timeout: 30000 // 30s
+        timeout: 45000 // 45s (aumentado por conta da melhor qualidade)
       }
     );
 
@@ -224,6 +238,7 @@ async function gerarAudioOpenAI(texto) {
         model: OPENAI_TTS_MODEL,
         voice: OPENAI_TTS_VOICE,
         input: texto,
+        speed: 1.0, // velocidade natural
         format: 'opus'
       },
       {
@@ -349,13 +364,13 @@ app.post('/tts', async (req, res) => {
   }
 
   try {
-    // 1) Ajusta o texto para fala (pontuação, pausas, etc.)
+    // 1) Ajusta o texto para fala humanizada (pontuação, pausas, etc.)
     const textoAjustado = await ajustarTextoParaFala(texto);
 
     console.log('Texto original:', texto);
-    console.log('Texto ajustado:', textoAjustado);
+    console.log('Texto humanizado:', textoAjustado);
 
-    // 2) Gera o áudio com ElevenLabs (voz Roberta)
+    // 2) Gera o áudio com ElevenLabs (voz Roberta humanizada)
     let audioBuffer;
     try {
       audioBuffer = await gerarAudioElevenLabs(textoAjustado);
@@ -381,7 +396,8 @@ app.post('/tts', async (req, res) => {
     return res.json({
       uri,
       type: 'audio/mpeg',
-      size
+      size,
+      textoProcessado: textoAjustado // opcional: retorna o texto processado
     });
   } catch (err) {
     const status = err?.response?.status;
@@ -437,5 +453,9 @@ app.post('/stt', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`API de voz rodando na porta ${PORT}`);
+  console.log(`API de voz humanizada rodando na porta ${PORT}`);
+  console.log('Configurações de qualidade:');
+  console.log('- Modelo ElevenLabs:', ELEVENLABS_MODEL_ID);
+  console.log('- Qualidade de áudio: 192kbps MP3');
+  console.log('- Humanização: Ativada');
 });
