@@ -290,7 +290,7 @@ async function salvarNoR2(buffer, userId = 'anonimo', options = {}) {
     throw new Error('Config R2 faltando (R2_BUCKET ou R2_PUBLIC_BASE_URL)');
   }
 
-  const { extension = 'mp3', contentType = 'audio/mpeg' } = options;
+  const { extension = 'ogg', contentType = 'audio/ogg' } = options;
 
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -374,7 +374,7 @@ app.post('/tts', async (req, res) => {
     console.log('Texto humanizado:', textoAjustado);
 
     // 2) Adiciona pausa suave no início para evitar início abrupto
-    const textoComPausa = `... ${textoAjustado}`;
+    const textoComPausa = `... ... ${textoAjustado}`;
     
     console.log('Texto com pausa inicial:', textoComPausa);
     
