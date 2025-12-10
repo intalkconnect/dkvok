@@ -372,11 +372,15 @@ app.post('/tts', async (req, res) => {
 
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
+    console.log('Texto com pausa inicial:', textoComPausa);
 
-    // 2) Gera o áudio com ElevenLabs (voz Roberta humanizada)
+    // 2) Adiciona pausa suave no início para evitar início abrupto
+    const textoComPausa = `. ${textoAjustado}`;
+    
+    // 3) Gera o áudio com ElevenLabs (voz Roberta humanizada)
     let audioBuffer;
     try {
-      audioBuffer = await gerarAudioElevenLabs(textoAjustado);
+      audioBuffer = await gerarAudioElevenLabs(textoComPausa);
     } catch (errEleven) {
       console.error('Falha ElevenLabs TTS:', errEleven?.message || errEleven);
 
