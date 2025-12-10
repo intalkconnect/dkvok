@@ -170,7 +170,7 @@ async function gerarAudioElevenLabs(texto) {
         model_id: ELEVENLABS_MODEL_ID, // eleven_multilingual_v2 é mais natural
         voice_settings: {
           stability: 0.4,             // Aumentado para reduzir tremulação (sweet spot)
-          similarity_boost: 0.8,       // Balanceado para clareza sem metalização
+          similarity_boost: 0.7,       // Balanceado para clareza sem metalização
           style: 0.25,                 // Reduzido para menos variação no final das palavras
           speed: 1.0,                  // Velocidade natural/normal
         },
@@ -280,7 +280,7 @@ async function salvarNoR2(buffer, userId = 'anonimo', options = {}) {
     throw new Error('Config R2 faltando (R2_BUCKET ou R2_PUBLIC_BASE_URL)');
   }
 
-  const { extension = 'ogg', contentType = 'audio/ogg' } = options;
+  const { extension = 'mp3', contentType = 'audio/mpeg' } = options;
 
   const now = new Date();
   const yyyy = now.getFullYear();
