@@ -32,6 +32,9 @@ const ELEVENLABS_VOICE_ID =
 const ELEVENLABS_MODEL_ID =
   process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5'; // melhor para português brasileiro
 
+// Silêncio inicial (em milissegundos) - cria respiro antes da fala
+const SILENCE_DURATION_MS = 800; // ~0.8 segundo de pausa inicial
+
 // Cloudflare R2
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
@@ -185,10 +188,10 @@ async function gerarAudioElevenLabs(texto) {
         headers: {
           'xi-api-key': ELEVENLABS_API_KEY,
           'Content-Type': 'application/json',
-          Accept: 'audio/mpeg'
+          Accept: 'audio/wav'  // ulaw retorna como WAV
         },
         params: {
-          output_format: 'mp3_44100_192',    // 192kbps para qualidade superior
+          output_format: 'ulaw_8000',        // ulaw 8kHz (formato telefônico, compatível com OGG)
           optimize_streaming_latency: 0      // Sem otimização de latência = melhor qualidade
         },
         responseType: 'arraybuffer',
@@ -278,6 +281,28 @@ async function gerarAudioOpenAI(texto) {
     }
 
     throw new Error('Falha ao chamar TTS da OpenAI (fallback)');
+  }
+}
+
+// ----------------------------------------------------
+// ADICIONAR SILÊNCIO INICIAL AO ÁUDIO
+// ----------------------------------------------------
+
+function adicionarSilencioInicial(audioBuffer, durationMs = 800) {
+  try {
+    // Calcula quantos bytes de silêncio são necessários
+    // Para ulaw 8kHz, são 8000 bytes por segundo
+    const silenceBytes = Math.floor((durationMs / 1000) * 8000);
+    
+    // Cria buffer de silêncio (0xFF para ulaw = silêncio)
+    const silenceBuffer = Buffer.alloc(silenceBytes, 0xFF);
+    
+    // Concatena silêncio + áudio original
+    return Buffer.concat([silenceBuffer, audioBuffer]);
+  } catch (err) {
+    console.error('Erro ao adicionar silêncio inicial:', err);
+    // Se falhar, retorna o áudio original
+    return audioBuffer;
   }
 }
 
@@ -373,15 +398,10 @@ app.post('/tts', async (req, res) => {
     console.log('Texto original:', texto);
     console.log('Texto humanizado:', textoAjustado);
 
-    // 2) Adiciona pausa de ~1s no início para evitar início abrupto
-    const textoComPausa = `... ... ${textoAjustado}`;
-    
-    console.log('Texto com pausa inicial:', textoComPausa);
-    
-    // 3) Gera o áudio com ElevenLabs (voz Roberta humanizada)
+    // 2) Gera o áudio com ElevenLabs (voz Roberta humanizada)
     let audioBuffer;
     try {
-      audioBuffer = await gerarAudioElevenLabs(textoComPausa);
+      audioBuffer = await gerarAudioElevenLabs(textoAjustado);
     } catch (errEleven) {
       console.error('Falha ElevenLabs TTS:', errEleven?.message || errEleven);
 
@@ -394,16 +414,20 @@ app.post('/tts', async (req, res) => {
       }
     }
 
-    // 4) Salva o áudio no Cloudflare R2 como MP3
+    // 3) Adiciona silêncio/respiro no início do áudio
+    audioBuffer = adicionarSilencioInicial(audioBuffer, SILENCE_DURATION_MS);
+    console.log(`Silêncio inicial de ${SILENCE_DURATION_MS}ms adicionado`);
+
+    // 4) Salva o áudio no Cloudflare R2 como OGG
     const { uri, size } = await salvarNoR2(audioBuffer, userId, {
-      extension: 'mp3',
-      contentType: 'audio/mpeg'
+      extension: 'ogg',
+      contentType: 'audio/ogg'
     });
 
     // 5) Retorna para o chamador (ex.: Blip)
     return res.json({
       uri,
-      type: 'audio/mpeg',
+      type: 'audio/ogg',
       size,
       textoProcessado: textoAjustado // opcional: retorna o texto processado
     });
@@ -464,9 +488,10 @@ app.listen(PORT, () => {
   console.log(`API de voz humanizada rodando na porta ${PORT}`);
   console.log('Configurações otimizadas (pt-BR natural):');
   console.log('- Modelo:', ELEVENLABS_MODEL_ID, '(otimizado para pt-BR)');
+  console.log('- Formato: OGG ulaw 8kHz (telefonia/WhatsApp)');
+  console.log('- Silêncio inicial:', SILENCE_DURATION_MS + 'ms (respiro antes da fala)');
   console.log('- Stability: 0.60');
   console.log('- Similarity Boost: 0.75');
   console.log('- Style: 0.15');
   console.log('- Speed: 0.92');
-  console.log('- Qualidade: 192kbps MP3');
 });
